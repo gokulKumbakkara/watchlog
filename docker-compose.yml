@@ -1,0 +1,45 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://watchlog:watchlog@postgres:5432/watchlog
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET_KEY=dev-secret-change-in-production-make-it-long-and-random
+    volumes:
+      - ./chroma_db:/app/chroma_db
+      - ./bm25_indexes:/app/bm25_indexes
+      - ./logs:/app/logs
+      - ./app:/app/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: watchlog
+      POSTGRES_USER: watchlog
+      POSTGRES_PASSWORD: watchlog
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U watchlog"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+volumes:
+  postgres_data:

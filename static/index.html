@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WatchLog</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a24;
+    --surface2: #22223a;
+    --border: #2e2e48;
+    --accent: #7c6af7;
+    --accent2: #a78bfa;
+    --gold: #f59e0b;
+    --text: #e2e2f0;
+    --muted: #8888aa;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --radius: 10px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 { font-size: 18px; font-weight: 700; color: var(--accent2); }
+  header span { color: var(--muted); font-size: 12px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    height: calc(100vh - 53px);
+  }
+
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: 1fr; height: auto; }
+  }
+
+  /* ── Left panel ─────────────────────────────────────────────────────────── */
+  .panel {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 14px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .panel-header h2 { font-size: 14px; font-weight: 600; flex: 1; }
+
+  .search-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  input[type="text"], select, textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input[type="text"]:focus, select:focus { border-color: var(--accent); }
+  #searchInput { flex: 1; }
+
+  button {
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius);
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    transition: background .15s;
+    white-space: nowrap;
+  }
+  button:hover { background: var(--accent2); }
+  button.secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button.secondary:hover { background: var(--border); }
+  button.danger { background: var(--danger); }
+  button.danger:hover { background: #dc2626; }
+
+  /* Search results dropdown */
+  #searchResults {
+    position: absolute;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    z-index: 100;
+    width: 380px;
+    max-height: 320px;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    display: none;
+  }
+  .search-result-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background .1s;
+  }
+  .search-result-item:last-child { border-bottom: none; }
+  .search-result-item:hover { background: var(--surface2); }
+  .search-result-item img { width: 40px; height: 56px; object-fit: cover; border-radius: 4px; background: var(--border); }
+  .sri-info strong { font-size: 13px; }
+  .sri-info small { color: var(--muted); font-size: 11px; display: block; }
+
+  /* Series grid */
+  .series-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    align-content: start;
+  }
+
+  .series-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color .15s, transform .1s;
+    position: relative;
+  }
+  .series-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+  .series-card img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    background: var(--surface2);
+    display: block;
+  }
+  .series-card .card-body { padding: 8px 10px; }
+  .series-card .card-name { font-size: 12px; font-weight: 600; line-height: 1.3; }
+  .series-card .card-progress { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  .badge {
+    display: inline-block;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  .badge-watching { background: #1e40af; color: #93c5fd; }
+  .badge-completed { background: #14532d; color: #86efac; }
+  .badge-onhold { background: #78350f; color: #fcd34d; }
+  .badge-dropped { background: #7f1d1d; color: #fca5a5; }
+  .badge-plan { background: #312e81; color: #c4b5fd; }
+
+  .new-season-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: var(--gold);
+    color: #000;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 5px;
+    text-transform: uppercase;
+  }
+
+  .check-btn {
+    margin-left: auto;
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+
+  /* ── Modal ──────────────────────────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    width: 400px;
+    max-width: 95vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .modal h3 { font-size: 16px; margin-bottom: 16px; }
+  .modal label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; margin-top: 12px; }
+  .modal input[type="text"],
+  .modal input[type="number"],
+  .modal select,
+  .modal textarea {
+    width: 100%;
+  }
+  .modal textarea { min-height: 70px; resize: vertical; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; }
+  .modal-poster {
+    width: 80px;
+    border-radius: 6px;
+    float: right;
+    margin-left: 12px;
+    margin-bottom: 4px;
+  }
+
+  /* ── Right panel — chat ──────────────────────────────────────────────────── */
+  .chat-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .msg {
+    max-width: 82%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg.user {
+    background: var(--accent);
+    align-self: flex-end;
+    border-bottom-right-radius: 3px;
+  }
+  .msg.assistant {
+    background: var(--surface2);
+    align-self: flex-start;
+    border-bottom-left-radius: 3px;
+  }
+  .msg.error { background: #7f1d1d; align-self: flex-start; }
+
+  .tool-pill {
+    align-self: flex-start;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--accent2);
+    animation: pulse 1.2s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+
+  .suggested-prompts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    align-items: flex-start;
+  }
+  .suggested-prompts p { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .prompt-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--accent2);
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .prompt-chip:hover { background: var(--border); }
+
+  .chat-input-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #chatInput {
+    flex: 1;
+    resize: none;
+    min-height: 40px;
+    max-height: 120px;
+    border-radius: var(--radius);
+    padding: 9px 12px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>WatchLog</h1>
+  <span>Personal TV Tracker + AI Agent</span>
+</header>
+
+<div class="layout">
+
+  <!-- ── LEFT PANEL ──────────────────────────────────────────────── -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>My Watchlist</h2>
+      <button class="secondary check-btn" onclick="checkAllSeasons()">Check Seasons</button>
+    </div>
+
+    <div class="search-row" style="position:relative;">
+      <input type="text" id="searchInput" placeholder="Search TVMaze to add a show…" autocomplete="off" />
+      <button onclick="doSearch()">Add</button>
+      <div id="searchResults"></div>
+    </div>
+
+    <div class="series-grid" id="seriesGrid">
+      <div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px 0;">
+        Loading watchlist…
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT PANEL ─────────────────────────────────────────────── -->
+  <div class="chat-panel">
+    <div class="panel-header">
+      <h2>Agent Chat</h2>
+    </div>
+
+    <div class="chat-messages" id="chatMessages">
+      <div class="suggested-prompts" id="suggestedPrompts">
+        <p>Try asking:</p>
+        <span class="prompt-chip" onclick="sendPrompt(this.textContent)">What should I watch next?</span>
+        <span class="prompt-chip" onclick="sendPrompt(this.textContent)">What happened in season 2 of Breaking Bad?</span>
+        <span class="prompt-chip" onclick="sendPrompt(this.textContent)">Any new seasons on my list?</span>
+        <span class="prompt-chip" onclick="sendPrompt(this.textContent)">Remind me where I left off</span>
+      </div>
+    </div>
+
+    <div class="chat-input-row">
+      <textarea id="chatInput" placeholder="Ask anything about your watchlist…" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+      <button onclick="sendChat()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── EDIT MODAL ───────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="modalTitle">Edit Series</h3>
+    <img id="modalPoster" class="modal-poster" src="" alt="" style="display:none" />
+    <div id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeModal()">Cancel</button>
+      <button class="danger" id="modalDeleteBtn">Remove</button>
+      <button id="modalSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+function makeUUID() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+const SESSION_ID = localStorage.getItem('wl_session') || (() => {
+  const id = makeUUID();
+  localStorage.setItem('wl_session', id);
+  return id;
+})();
+
+let currentSeries = null;
+let allSeries = [];
+
+// ── Watchlist ─────────────────────────────────────────────────────────────────
+async function loadWatchlist() {
+  const resp = await fetch('/api/v1/series');
+  allSeries = await resp.json();
+  renderGrid(allSeries);
+}
+
+function badgeClass(status) {
+  return { 'Watching':'watching','Completed':'completed','On Hold':'onhold',
+           'Dropped':'dropped','Plan to Watch':'plan' }[status] || 'watching';
+}
+
+function renderGrid(list) {
+  const grid = document.getElementById('seriesGrid');
+  if (!list.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px 0;">No shows yet. Search above to add one!</div>';
+    return;
+  }
+  grid.innerHTML = list.map(s => `
+    <div class="series-card" onclick="openModal(${s.id})">
+      ${s.has_new_season ? '<div class="new-season-badge">NEW</div>' : ''}
+      <img src="${s.poster_url || ''}" alt="${s.name}"
+           onerror="this.style.background='var(--surface2)';this.src=''" />
+      <div class="card-body">
+        <div class="card-name">${s.name}</div>
+        <div class="card-progress">S${String(s.current_season).padStart(2,'0')}E${String(s.current_episode).padStart(2,'0')}</div>
+        <div style="margin-top:4px"><span class="badge badge-${badgeClass(s.status)}">${s.status}</span></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── TVMaze Search ──────────────────────────────────────────────────────────────
+let searchTimer;
+document.getElementById('searchInput').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(doSearch, 400);
+});
+
+async function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  const box = document.getElementById('searchResults');
+  if (!q) { box.style.display = 'none'; return; }
+
+  const resp = await fetch(`/api/v1/series/search?q=${encodeURIComponent(q)}`);
+  const results = await resp.json();
+
+  if (!results.length) { box.style.display = 'none'; return; }
+
+  box.innerHTML = results.map(r => `
+    <div class="search-result-item" onclick="addSeries(${r.tvmaze_id}, '${r.name.replace(/'/g,"\\'")}')">
+      <img src="${r.poster_url || ''}" alt="${r.name}" onerror="this.style.display='none'" />
+      <div class="sri-info">
+        <strong>${r.name}</strong>
+        <small>${r.network || ''} ${r.genre ? '· ' + r.genre.split(',')[0] : ''}</small>
+        <small>${r.status || ''}</small>
+      </div>
+    </div>
+  `).join('');
+  box.style.display = 'block';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-row')) {
+    document.getElementById('searchResults').style.display = 'none';
+  }
+});
+
+async function addSeries(tvmaze_id, name) {
+  document.getElementById('searchResults').style.display = 'none';
+  document.getElementById('searchInput').value = '';
+  const resp = await fetch('/api/v1/series', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ tvmaze_id })
+  });
+  if (resp.ok) {
+    await loadWatchlist();
+    showToast(`Added "${name}" to your watchlist`);
+  } else if (resp.status === 409) {
+    showToast(`"${name}" is already in your watchlist`, 'warn');
+  } else {
+    showToast('Failed to add series', 'error');
+  }
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openModal(id) {
+  const s = allSeries.find(x => x.id === id);
+  if (!s) return;
+  currentSeries = s;
+
+  document.getElementById('modalTitle').textContent = s.name;
+
+  const poster = document.getElementById('modalPoster');
+  if (s.poster_url) { poster.src = s.poster_url; poster.style.display = 'block'; }
+  else { poster.style.display = 'none'; }
+
+  document.getElementById('modalBody').innerHTML = `
+    <label>Status</label>
+    <select id="mStatus">
+      ${['Watching','Completed','On Hold','Dropped','Plan to Watch'].map(st =>
+        `<option ${s.status===st?'selected':''}>${st}</option>`
+      ).join('')}
+    </select>
+    <label>Season</label>
+    <input type="number" id="mSeason" value="${s.current_season}" min="1" />
+    <label>Episode</label>
+    <input type="number" id="mEpisode" value="${s.current_episode}" min="0" />
+    <label>Notes</label>
+    <textarea id="mNotes">${s.notes || ''}</textarea>
+    <div style="margin-top:14px">
+      <button onclick="justWatched()" style="width:100%">▶ Just Watched (advance episode)</button>
+    </div>
+    <div style="margin-top:6px;color:var(--muted);font-size:11px;">
+      ${s.total_seasons} seasons · ${s.total_episodes} episodes · ${s.network || 'Unknown network'}
+      ${s.has_new_season ? ' · <span style="color:var(--gold)">New season available!</span>' : ''}
+    </div>
+  `;
+
+  document.getElementById('modalDeleteBtn').onclick = () => deleteSeries(s.id, s.name);
+  document.getElementById('modalSaveBtn').onclick = saveModal;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  currentSeries = null;
+}
+
+async function saveModal() {
+  if (!currentSeries) return;
+  const body = {
+    status: document.getElementById('mStatus').value,
+    current_season: parseInt(document.getElementById('mSeason').value),
+    current_episode: parseInt(document.getElementById('mEpisode').value),
+    notes: document.getElementById('mNotes').value || null,
+  };
+  const resp = await fetch(`/api/v1/series/${currentSeries.id}`, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (resp.ok) {
+    closeModal();
+    await loadWatchlist();
+    showToast('Saved');
+  } else {
+    showToast('Save failed', 'error');
+  }
+}
+
+async function justWatched() {
+  if (!currentSeries) return;
+  const newEp = (parseInt(document.getElementById('mEpisode').value) || 0) + 1;
+  document.getElementById('mEpisode').value = newEp;
+  const body = {
+    current_season: parseInt(document.getElementById('mSeason').value),
+    current_episode: newEp,
+    last_watched: new Date().toISOString(),
+  };
+  await fetch(`/api/v1/series/${currentSeries.id}`, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  await loadWatchlist();
+  showToast('Progress updated');
+}
+
+async function deleteSeries(id, name) {
+  if (!confirm(`Remove "${name}" from watchlist?`)) return;
+  const resp = await fetch(`/api/v1/series/${id}`, { method: 'DELETE' });
+  if (resp.ok) {
+    closeModal();
+    await loadWatchlist();
+    showToast(`Removed "${name}"`);
+  }
+}
+
+async function checkAllSeasons() {
+  showToast('Checking for new seasons…');
+  const resp = await fetch('/api/v1/series/check-seasons', { method: 'POST' });
+  const data = await resp.json();
+  await loadWatchlist();
+  const msg = data.shows_with_new.length
+    ? `New seasons: ${data.shows_with_new.join(', ')}`
+    : `Checked ${data.checked} shows — no new seasons`;
+  showToast(msg);
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+function sendPrompt(text) {
+  document.getElementById('chatInput').value = text;
+  sendChat();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  if (!message) return;
+  input.value = '';
+
+  hideSuggested();
+  appendMsg('user', message);
+
+  const assistantEl = appendMsg('assistant', '');
+  let toolPill = null;
+  let fullText = '';
+
+  try {
+    const resp = await fetch('/api/v1/agent/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message, session_id: SESSION_ID }),
+    });
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const json = JSON.parse(line.slice(6));
+
+        if (json.type === 'token') {
+          fullText += json.content;
+          assistantEl.textContent = fullText;
+          scrollChat();
+        } else if (json.type === 'tool_call') {
+          if (toolPill) toolPill.remove();
+          toolPill = document.createElement('div');
+          toolPill.className = 'tool-pill';
+          toolPill.textContent = `Using ${json.tool}…`;
+          document.getElementById('chatMessages').appendChild(toolPill);
+          scrollChat();
+        } else if (json.type === 'done') {
+          if (toolPill) toolPill.remove();
+          await loadWatchlist();
+        } else if (json.type === 'error') {
+          assistantEl.textContent = `Error: ${json.content}`;
+          assistantEl.className = 'msg error';
+        }
+      }
+    }
+  } catch (err) {
+    assistantEl.textContent = `Connection error: ${err.message}`;
+    assistantEl.className = 'msg error';
+  }
+}
+
+function appendMsg(role, text) {
+  const el = document.createElement('div');
+  el.className = `msg ${role}`;
+  el.textContent = text;
+  document.getElementById('chatMessages').appendChild(el);
+  scrollChat();
+  return el;
+}
+
+function scrollChat() {
+  const m = document.getElementById('chatMessages');
+  m.scrollTop = m.scrollHeight;
+}
+
+function hideSuggested() {
+  const s = document.getElementById('suggestedPrompts');
+  if (s) s.remove();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'info') {
+  const t = document.createElement('div');
+  t.style.cssText = `
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:${type==='error'?'var(--danger)':type==='warn'?'var(--gold)':'var(--accent)'};
+    color:${type==='warn'?'#000':'#fff'};
+    padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;
+    z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.4);
+    animation:fadeIn .2s ease;
+  `;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+loadWatchlist();
+</script>
+</body>
+</html>
