@@ -10,21 +10,6 @@ A full-stack personal TV series tracker with JWT-based multi-user auth, a LangCh
 
 ---
 
-## What We Built
-
-| Layer | Tech |
-|---|---|
-| **Backend API** | FastAPI + SQLAlchemy async + PostgreSQL + Alembic |
-| **Auth** | JWT (PyJWT) — register/login, per-user isolated data |
-| **AI Agent** | LangChain ReAct + Groq llama-3.3-70b, SSE streaming |
-| **RAG** | ChromaDB (vector) + BM25Okapi, merged via Reciprocal Rank Fusion |
-| **Season monitoring** | APScheduler + TVMaze API + DuckDuckGo fallback |
-| **Frontend** | React 18 + Vite + TypeScript + CSS Modules, dark theme |
-| **Infra** | Docker multi-stage build (Node → Python → runtime) |
-| **Code intelligence** | Repowise MCP — graph, git signals, dead code, wiki |
-
----
-
 ## Features
 
 ### Multi-User Auth
@@ -83,7 +68,32 @@ At query time both are searched, then merged with **Reciprocal Rank Fusion** (k=
 
 ---
 
-## Quickstart — Docker
+## Tech Stack
+
+| Layer | Tech |
+|---|---|
+| **Backend API** | FastAPI + SQLAlchemy async + PostgreSQL + Alembic |
+| **Auth** | JWT (PyJWT) — register/login, per-user isolated data |
+| **AI Agent** | LangChain ReAct + Groq llama-3.3-70b, SSE streaming |
+| **RAG** | ChromaDB (vector) + BM25Okapi, merged via Reciprocal Rank Fusion |
+| **Season monitoring** | APScheduler + TVMaze API + DuckDuckGo fallback |
+| **Frontend** | React 18 + Vite + TypeScript + CSS Modules, dark theme |
+| **Infra** | Docker multi-stage build (Node → Python → runtime) |
+| **Code intelligence** | Repowise MCP — graph, git signals, dead code, wiki |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+**Docker (recommended):** Docker + Docker Compose
+
+**Local (no Docker):** Python 3.11+, PostgreSQL, Redis, Node.js (for the frontend)
+
+### Installation
+
+**Docker**
 
 ```bash
 git clone https://github.com/gokulKumbakkara/watchlog
@@ -99,9 +109,7 @@ Open [http://localhost:8000](http://localhost:8000), register an account, and st
 
 > Alembic migrations run automatically on startup. No manual `alembic upgrade head` needed.
 
----
-
-## Quickstart — Local (no Docker)
+**Local (no Docker)**
 
 ```bash
 # Prerequisites: Python 3.11+, PostgreSQL, Redis
@@ -265,9 +273,3 @@ OPENAI_API_KEY=<your_groq_key> OPENAI_BASE_URL=https://api.groq.com/openai/v1 \
 
 repowise serve   # local dashboard
 ```
-
----
-
-## License
-
-MIT
